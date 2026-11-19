@@ -1,0 +1,117 @@
+@baseUrl = http://localhost:8000/api/v1
+
+### ==========================================================
+### TPI Food Store — Autenticación (JWT en cookie HttpOnly)
+### REST Client guarda la cookie access_token y la reenvía sola.
+### Ejecutar en orden. Antes: python -m app.db.seed
+### ==========================================================
+
+
+### ----------------------------------------------------------
+### REGISTRO
+### ----------------------------------------------------------
+
+### 1. Registrar un cliente (201 UserPublic, role = "user", sin hashed_password)
+# @name registro
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "juan{{$randomInt 1000 9999}}",
+  "full_name": "Juan Pérez",
+  "email": "juan{{$randomInt 1000 9999}}@mail.com",
+  "password": "Secreta123"
+}
+
+### 2. Registrar con username existente (409)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "full_name": "Otro Admin",
+  "email": "otro@mail.com",
+  "password": "Secreta123"
+}
+
+### 3. Registrar con email existente (409)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "nuevo{{$randomInt 1000 9999}}",
+  "full_name": "Nuevo",
+  "email": "admin@foodstore.com",
+  "password": "Secreta123"
+}
+
+### 4. Password de menos de 8 caracteres (422)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "corto",
+  "full_name": "Corto",
+  "email": "corto@mail.com",
+  "password": "123"
+}
+
+### 5. Email inválido (422)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "malmail",
+  "full_name": "Mal Mail",
+  "email": "esto-no-es-un-email",
+  "password": "Secreta123"
+}
+
+
+### ----------------------------------------------------------
+### LOGIN / ME / LOGOUT
+### ----------------------------------------------------------
+
+### 6. /me sin sesión (401)
+POST {{baseUrl}}/auth/logout
+
+###
+GET {{baseUrl}}/auth/me
+
+### 7. Login con contraseña incorrecta (401)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=incorrecta
+
+### 8. Login con usuario inexistente (401)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=no-existe&password=Secreta123
+
+### 9. Login del usuario registrado en 1 (200 { "message": "Login exitoso" })
+# Mirar el header Set-Cookie: access_token=...; HttpOnly; Max-Age=1800; SameSite=lax
+# El cuerpo NO incluye el token.
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{registro.response.body.username}}&password=Secreta123
+
+### 10. Perfil del usuario de la sesión (200 UserPublic)
+GET {{baseUrl}}/auth/me
+
+### 11. Logout (200, borra la cookie)
+POST {{baseUrl}}/auth/logout
+
+### 12. /me después del logout (401)
+GET {{baseUrl}}/auth/me
+
+### 13. Login del admin del seed (200)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=Admin1234!
+
+### 14. /me del admin (200, role = "admin")
+GET {{baseUrl}}/auth/me

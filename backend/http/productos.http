@@ -1,0 +1,139 @@
+@baseUrl = http://localhost:8000/api/v1
+
+### ==========================================================
+### TPI Food Store — Productos (lecturas públicas, escrituras admin)
+### Listado paginado: skip (0), limit (20, máx. 100), search,
+### categoria_id, disponible → { "total": N, "items": [...] }
+### Ejecutar en orden. Antes: python -m app.db.seed
+### ==========================================================
+
+
+### ----------------------------------------------------------
+### LECTURAS PÚBLICAS
+### ----------------------------------------------------------
+
+### 1. Primera página (200 ProductosPaginados)
+GET {{baseUrl}}/productos
+
+### 2. Paginación: segunda página de 3
+GET {{baseUrl}}/productos?skip=3&limit=3
+
+### 3. Búsqueda sin distinguir mayúsculas
+GET {{baseUrl}}/productos?search=PIZZA
+
+### 4. Filtro por categoría y disponibilidad
+GET {{baseUrl}}/productos?categoria_id=1&disponible=true
+
+### 5. limit mayor a 100 (422)
+GET {{baseUrl}}/productos?limit=500
+
+### 6. Detalle con su categoría (200 ProductoRead)
+GET {{baseUrl}}/productos/1
+
+### 7. Detalle inexistente (404)
+GET {{baseUrl}}/productos/99999
+
+
+### ----------------------------------------------------------
+### PERMISOS
+### ----------------------------------------------------------
+
+### 8. Login como cliente
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=cliente&password=Cliente1234!
+
+### 9. Un cliente no puede crear productos (403)
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{ "nombre": "Prohibido", "precio_base": 100, "categoria_id": 1 }
+
+### 10. Ni cambiar stock (403)
+PATCH {{baseUrl}}/productos/1/stock
+Content-Type: application/json
+
+{ "stock": 0 }
+
+
+### ----------------------------------------------------------
+### ABM COMO ADMIN
+### ----------------------------------------------------------
+
+### 11. Login admin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=Admin1234!
+
+### 12. Crear producto (201 ProductoRead con categoria)
+# @name nuevo
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{
+  "nombre": "Pizza Calabresa {{$randomInt 100 999}}",
+  "descripcion": "Muzzarella y longaniza",
+  "precio_base": 11500,
+  "imagen_url": "https://placehold.co/600x400?text=Calabresa",
+  "stock": 10,
+  "categoria_id": 1
+}
+
+### 13. Categoría inexistente (404)
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{ "nombre": "Huérfano", "precio_base": 100, "categoria_id": 99999 }
+
+### 14. Precio negativo y stock negativo (422)
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{ "nombre": "Inválido", "precio_base": -1, "stock": -5, "categoria_id": 1 }
+
+### 15. PUT parcial: solo el precio (200, conserva el resto)
+PUT {{baseUrl}}/productos/{{nuevo.response.body.id}}
+Content-Type: application/json
+
+{ "precio_base": 12000 }
+
+### 16. PUT cambiando a una categoría inexistente (404)
+PUT {{baseUrl}}/productos/{{nuevo.response.body.id}}
+Content-Type: application/json
+
+{ "categoria_id": 99999 }
+
+### 17. PUT producto inexistente (404)
+PUT {{baseUrl}}/productos/99999
+Content-Type: application/json
+
+{ "precio_base": 1 }
+
+### 18. Cambiar stock y disponibilidad (200)
+PATCH {{baseUrl}}/productos/{{nuevo.response.body.id}}/stock
+Content-Type: application/json
+
+{ "stock": 25, "disponible": false }
+
+### 19. Stock negativo (422)
+PATCH {{baseUrl}}/productos/{{nuevo.response.body.id}}/stock
+Content-Type: application/json
+
+{ "stock": -1 }
+
+### 20. Baja lógica (204 sin cuerpo)
+DELETE {{baseUrl}}/productos/{{nuevo.response.body.id}}
+
+### 21. Producto dado de baja: detalle (404)
+GET {{baseUrl}}/productos/{{nuevo.response.body.id}}
+
+### 22. Producto dado de baja: PATCH stock (404)
+PATCH {{baseUrl}}/productos/{{nuevo.response.body.id}}/stock
+Content-Type: application/json
+
+{ "stock": 1 }
+
+### 23. Producto dado de baja: DELETE otra vez (404)
+DELETE {{baseUrl}}/productos/{{nuevo.response.body.id}}

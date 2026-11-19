@@ -1,0 +1,119 @@
+@baseUrl = http://localhost:8000/api/v1
+
+### ==========================================================
+### TPI Food Store — Categorías (lecturas públicas, escrituras admin)
+### Baja lógica: DELETE pone activo = false y responde 204.
+### Ejecutar en orden. Antes: python -m app.db.seed
+### ==========================================================
+
+
+### ----------------------------------------------------------
+### LECTURAS PÚBLICAS
+### ----------------------------------------------------------
+
+### 1. Listar categorías activas (200 list[CategoriaRead])
+GET {{baseUrl}}/categorias
+
+### 2. Detalle (200)
+GET {{baseUrl}}/categorias/1
+
+### 3. Detalle inexistente (404)
+GET {{baseUrl}}/categorias/99999
+
+
+### ----------------------------------------------------------
+### PERMISOS
+### ----------------------------------------------------------
+
+### 4. Crear sin sesión (401)
+POST {{baseUrl}}/auth/logout
+
+###
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{ "nombre": "Sin sesión" }
+
+### 5. Crear como cliente (403)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=cliente&password=Cliente1234!
+
+###
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{ "nombre": "Soy cliente" }
+
+
+### ----------------------------------------------------------
+### ABM COMO ADMIN
+### ----------------------------------------------------------
+
+### 6. Login admin (200)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=Admin1234!
+
+### 7. Crear categoría (201 CategoriaRead)
+# @name nueva
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{
+  "nombre": "Postres {{$randomInt 1000 9999}}",
+  "descripcion": "Dulces caseros"
+}
+
+### 8. Nombre duplicado (409)
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{ "nombre": "Pizzas" }
+
+### 9. Nombre de 1 carácter (422)
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{ "nombre": "P" }
+
+### 10. Actualizar solo la descripción: PUT parcial (200, conserva el nombre)
+PUT {{baseUrl}}/categorias/{{nueva.response.body.id}}
+Content-Type: application/json
+
+{ "descripcion": "Postres y helados" }
+
+### 11. Actualizar con un nombre que ya usa otra categoría (409)
+PUT {{baseUrl}}/categorias/{{nueva.response.body.id}}
+Content-Type: application/json
+
+{ "nombre": "Pizzas" }
+
+### 12. Actualizar inexistente (404)
+PUT {{baseUrl}}/categorias/99999
+Content-Type: application/json
+
+{ "descripcion": "x" }
+
+### 13. Baja lógica (204 sin cuerpo)
+DELETE {{baseUrl}}/categorias/{{nueva.response.body.id}}
+
+### 14. La categoría dada de baja se trata como inexistente (404)
+GET {{baseUrl}}/categorias/{{nueva.response.body.id}}
+
+### 15. PUT sobre una categoría dada de baja (404)
+PUT {{baseUrl}}/categorias/{{nueva.response.body.id}}
+Content-Type: application/json
+
+{ "descripcion": "x" }
+
+### 16. DELETE otra vez (404)
+DELETE {{baseUrl}}/categorias/{{nueva.response.body.id}}
+
+### 17. La baja lógica NO libera el nombre (409)
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{ "nombre": "{{nueva.response.body.nombre}}" }

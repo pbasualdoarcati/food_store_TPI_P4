@@ -1,0 +1,83 @@
+@baseUrl = http://localhost:8000/api/v1
+
+### ==========================================================
+### TPI Food Store — Gestión de usuarios (solo admin)
+### Ejecutar en orden. Antes: python -m app.db.seed
+### ==========================================================
+
+
+### ----------------------------------------------------------
+### PREPARACIÓN: un cliente y la sesión de cliente
+### ----------------------------------------------------------
+
+### 1. Registrar un cliente (201)
+# @name cliente
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "maria{{$randomInt 1000 9999}}",
+  "full_name": "María Gómez",
+  "email": "maria{{$randomInt 1000 9999}}@mail.com",
+  "password": "Secreta123"
+}
+
+### 2. Login como cliente (200)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{cliente.response.body.username}}&password=Secreta123
+
+### 3. Un cliente no puede listar usuarios (403)
+GET {{baseUrl}}/admin/usuarios
+
+### 4. Sin sesión (401)
+POST {{baseUrl}}/auth/logout
+
+###
+GET {{baseUrl}}/admin/usuarios
+
+
+### ----------------------------------------------------------
+### ADMIN
+### ----------------------------------------------------------
+
+### 5. Login admin (200)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=Admin1234!
+
+### 6. Perfil del admin (para conocer su id)
+# @name yo
+GET {{baseUrl}}/auth/me
+
+### 7. Listar usuarios (200 list[UserPublic])
+GET {{baseUrl}}/admin/usuarios
+
+### 8. Desactivar al cliente (200, disabled = true)
+POST {{baseUrl}}/admin/usuarios/{{cliente.response.body.id}}/desactivar
+
+### 9. Desactivar de nuevo: idempotente (200)
+POST {{baseUrl}}/admin/usuarios/{{cliente.response.body.id}}/desactivar
+
+### 10. El cliente desactivado no puede iniciar sesión (400 "Cuenta de usuario desactivada")
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{cliente.response.body.username}}&password=Secreta123
+
+### 11. Activar al cliente (200, disabled = false)
+POST {{baseUrl}}/admin/usuarios/{{cliente.response.body.id}}/activar
+
+### 12. Activar de nuevo: idempotente (200)
+POST {{baseUrl}}/admin/usuarios/{{cliente.response.body.id}}/activar
+
+### 13. El admin no puede desactivarse a sí mismo (400)
+POST {{baseUrl}}/admin/usuarios/{{yo.response.body.id}}/desactivar
+
+### 14. Usuario inexistente al desactivar (404)
+POST {{baseUrl}}/admin/usuarios/99999/desactivar
+
+### 15. Usuario inexistente al activar (404)
+POST {{baseUrl}}/admin/usuarios/99999/activar
